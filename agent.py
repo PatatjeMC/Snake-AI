@@ -143,10 +143,10 @@ def train():
             total_score += score
             mean_score = total_score / agent.n_games
             plot_mean_scores.append(mean_score)
-            recent_mean_scores = sum(plot_scores[-30:]) / min(30, len(plot_scores))
+            recent_mean_scores = sum(plot_scores[-recent_mean_amount:]) / min(recent_mean_amount, len(plot_scores))
             plot_recent_mean_scores.append(recent_mean_scores)
 
-            if(recent_mean_scores > best_recent_mean_scores):
+            if(recent_mean_scores > best_recent_mean_scores and agent.n_games >= minimum_games_before_save):
                 best_recent_mean_scores = recent_mean_scores
                 if(train_model):
                     agent.model.save()
@@ -165,5 +165,7 @@ if __name__ == '__main__':
     plot_results = True
     minimum_epsilon = 5
     maximum_epsilon = 100
+    recent_mean_amount = 100
+    minimum_games_before_save = 50
     game_speed = 100000000 # 20 or 100000000 recommended
     train()
