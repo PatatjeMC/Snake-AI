@@ -166,6 +166,6 @@ if __name__ == '__main__':
     minimum_epsilon = 5
     maximum_epsilon = 100
     recent_mean_amount = 100
-    minimum_games_before_save = 50
+    minimum_games_before_save = 30
     game_speed = 100000000 # 20 or 100000000 recommended
     train()
