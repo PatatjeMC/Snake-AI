@@ -151,7 +151,7 @@ def train():
                 if(train_model):
                     agent.model.save()
 
-                        print('Game:', agent.n_games, 'Score:', score, 'Record:', record, 'Best Recent Mean Scores:', best_recent_mean_scores)
+            print('Game:', agent.n_games, 'Score:', score, 'Record:', record, 'Best Recent Mean Scores:', best_recent_mean_scores)
 
             if(plot_results):
                 plot(plot_scores, plot_mean_scores, plot_recent_mean_scores)
