@@ -5,26 +5,55 @@ import torch.nn.functional as F
 import os
 
 class Linear_QNet(nn.Module):
-    def __init__(self, input_size, hidden_size, output_size):
+    def __init__(self, hidden_size, output_size):
         super().__init__()
-        self.input = nn.Linear(input_size, hidden_size, bias=False)
-        self.hidden = nn.Linear(hidden_size, hidden_size)
-        self.hidden2 = nn.Linear(hidden_size, hidden_size)
-        self.hidden3 = nn.Linear(hidden_size, hidden_size)
+        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, stride=1, padding=1)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
+        self.pool = nn.MaxPool2d(2, 2)
+
+        flat_size = 32 * 8 * 6
+
+        self.input_direct = nn.Linear(16, 64)
+        self.fc1 = nn.Linear(flat_size + 64, hidden_size)
+        self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.output = nn.Linear(hidden_size, output_size)
         self.hidden_size = hidden_size
+        
+        nn.init.kaiming_uniform_(self.input_direct.weight)
+        nn.init.kaiming_uniform_(self.fc1.weight)
+        nn.init.kaiming_uniform_(self.fc2.weight)
+        nn.init.xavier_uniform_(self.output.weight)
 
-    def forward(self, inp, hidden_state):
-        inp = F.relu(self.input(inp))
-        inp = F.relu(self.hidden(inp)) #
+        nn.init.kaiming_uniform_(self.conv1.weight)
+        nn.init.kaiming_uniform_(self.conv2.weight)
 
-        hidden_state = self.hidden2(hidden_state)
-        hidden_state = torch.tanh(inp + hidden_state)
+    def forward(self, x, hidden_state):
+        if x.dim() == 1:
+            x = x.unsqueeze(0)
 
-        out = F.relu(self.hidden3(hidden_state))
-        out = self.output(out)
+        direct_features = x[:, :16]
+        grid = x[:, 16:]
 
-        return out, hidden_state
+        batch_size = grid.shape[0]
+        grid = grid.view(batch_size, 1, 24, 32)
+        grid = F.relu(self.conv1(grid))
+        grid = self.pool(grid)
+        grid = F.relu(self.conv2(grid))
+        grid = self.pool(grid)
+        grid = grid.view(batch_size, -1)
+
+        direct_out = F.relu(self.input_direct(direct_features))
+
+        combined = torch.cat((direct_out, grid), dim=1)
+
+        x = F.relu(self.fc1(combined))
+
+        hidden_state = torch.tanh(x + hidden_state)
+
+        x = F.relu(self.fc2(hidden_state))
+        x = self.output(x)
+
+        return x, hidden_state
     
     def save(self, file_name='model.pth'):
         model_folder_path = './model'
