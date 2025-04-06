@@ -159,7 +159,7 @@ def train():
 
 
 if __name__ == '__main__':
-    load_model = True
+    load_model = False
     train_model = True
     start_with_high_epsilon = True
     plot_results = True
