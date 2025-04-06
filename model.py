@@ -13,13 +13,11 @@ class Linear_QNet(nn.Module):
 
         flat_size = 32 * 8 * 6
 
-        self.input_direct = nn.Linear(16, 64)
-        self.fc1 = nn.Linear(flat_size + 64, hidden_size)
+        self.fc1 = nn.Linear(flat_size, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
         self.output = nn.Linear(hidden_size, output_size)
         self.hidden_size = hidden_size
         
-        nn.init.kaiming_uniform_(self.input_direct.weight)
         nn.init.kaiming_uniform_(self.fc1.weight)
         nn.init.kaiming_uniform_(self.fc2.weight)
         nn.init.xavier_uniform_(self.output.weight)
@@ -27,33 +25,22 @@ class Linear_QNet(nn.Module):
         nn.init.kaiming_uniform_(self.conv1.weight)
         nn.init.kaiming_uniform_(self.conv2.weight)
 
-    def forward(self, x, hidden_state):
+    def forward(self, x):
         if x.dim() == 1:
             x = x.unsqueeze(0)
 
-        direct_features = x[:, :16]
-        grid = x[:, 16:]
-
-        batch_size = grid.shape[0]
-        grid = grid.view(batch_size, 1, 24, 32)
+        batch_size = x.shape[0]
+        grid = x.view(batch_size, 1, 24, 32)
         grid = F.relu(self.conv1(grid))
         grid = self.pool(grid)
         grid = F.relu(self.conv2(grid))
         grid = self.pool(grid)
         grid = grid.view(batch_size, -1)
 
-        direct_out = F.relu(self.input_direct(direct_features))
-
-        combined = torch.cat((direct_out, grid), dim=1)
-
-        x = F.relu(self.fc1(combined))
-
-        hidden_state = torch.tanh(x + hidden_state)
-
-        x = F.relu(self.fc2(hidden_state))
+        x = F.relu(self.fc1(grid))
         x = self.output(x)
 
-        return x, hidden_state
+        return x
     
     def save(self, file_name='model.pth'):
         model_folder_path = './model'
@@ -79,7 +66,7 @@ class QTrainer:
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
 
-    def train_step(self, state, hidden_state, action, reward, next_state, done):
+    def train_step(self, state, action, reward, next_state, done):
         state = torch.tensor(state, dtype=torch.float)
         next_state = torch.tensor(next_state, dtype=torch.float)
         action = torch.tensor(action, dtype=torch.long)
@@ -94,26 +81,17 @@ class QTrainer:
             reward = torch.unsqueeze(reward, 0)
             done = (done, )
 
-            if hidden_state.dim() == 1:
-                hidden_state = torch.unsqueeze(hidden_state, 0)
-
-        if isinstance(hidden_state, tuple):
-            hidden_state = torch.stack(hidden_state)
-
-        hidden_state = hidden_state.detach()
-
         # 1: predicted Q values with current state
-        pred, next_hidden = self.model(state, hidden_state)
+        pred = self.model(state)
 
         target = pred.clone()
         for idx in range(len(done)):
             Q_new = reward[idx]
             if not done[idx]:
                 next_state_single = next_state[idx].unsqueeze(0)
-                next_hidden_single = next_hidden[idx].unsqueeze(0).detach()
 
                 with torch.no_grad():
-                    next_pred = self.model(next_state_single, next_hidden_single)[0]
+                    next_pred = self.model(next_state_single)[0]
                     Q_new = reward[idx] + self.gamma * torch.max(next_pred)
 
             if action.dim() > 1:
@@ -128,8 +106,6 @@ class QTrainer:
         loss = self.criterion(target, pred)
         loss.backward()
         self.optimizer.step()
-
-        return hidden_state.detach()
 
 
 

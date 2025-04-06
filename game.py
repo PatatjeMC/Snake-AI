@@ -82,7 +82,7 @@ class SnakeGameAI:
         
         old_distance = abs(self.prev_head.x - self.food.x) + abs(self.prev_head.y - self.food.y)
         new_distance = abs(self.head.x - self.food.x) + abs(self.head.y - self.food.y)
-        reward = 0.1 if new_distance < old_distance else -0.1  # Small shaping reward
+        reward = 1 if new_distance < old_distance else -1
 
         # 3. check if game over
         game_over = False
@@ -131,21 +131,23 @@ class SnakeGameAI:
         pygame.display.flip()
         
     def _move(self, action):
-        # [straight, right, left]
+        new_dir = None
 
-        clock_wise = [Direction.RIGHT, Direction.DOWN, Direction.LEFT, Direction.UP]
-        idx = clock_wise.index(self.direction)
-
-        if np.array_equal(action, [1, 0, 0]):
-            new_dir = clock_wise[idx]
-        elif np.array_equal(action, [0, 1, 0]):
-            next_idx = (idx + 1) % 4
-            new_dir = clock_wise[next_idx]
+        if np.array_equal(action, [1, 0, 0, 0]):
+            if self.direction is not Direction.LEFT:
+                new_dir = Direction.RIGHT
+        elif np.array_equal(action, [0, 1, 0, 0]):
+            if self.direction is not Direction.UP:
+                new_dir = Direction.DOWN
+        elif np.array_equal(action, [0, 0, 1, 0]):
+            if self.direction is not Direction.RIGHT:
+                new_dir = Direction.LEFT 
         else:
-            next_idx = (idx - 1) % 4
-            new_dir = clock_wise[next_idx]
+            if self.direction is not Direction.DOWN:
+                new_dir = Direction.UP
 
-        self.direction = new_dir
+        if new_dir is not None:
+            self.direction = new_dir
 
         x = self.head.x
         y = self.head.y
